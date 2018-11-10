@@ -42,6 +42,6 @@ libraryDependencies ++= Seq(
   "io.chrisdavenport"   %% "cats-par"             % catsParVersion,
 )
 
-mainClass in (Compile, run) := Some("com.practicingtechie.Server")
+mainClass in (Compile, run) := Some("com.practicingtechie.http4s.Server")
 
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)

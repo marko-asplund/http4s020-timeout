@@ -1,20 +1,22 @@
-package com.practicingtechie
+package com.practicingtechie.http4s
 
-import cats.temp.par._
-import org.http4s.dsl.Http4sDsl
-import org.http4s.client.dsl.Http4sClientDsl
 import cats.effect._
 import cats.implicits._
+import cats.temp.par._
+import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.dsl.Http4sDsl
+
 import scala.language.higherKinds
 
 
 class HttpServer[F[_]: ConcurrentEffect : ContextShift : Timer : Par] extends Http4sDsl[F] with Http4sClientDsl[F] {
-  import fs2.Stream
   import cats.MonadError
   import com.typesafe.scalalogging.Logger
+  import fs2.Stream
   import org.http4s.client.Client
-  import org.http4s.server.blaze.BlazeBuilder
   import org.http4s.client.blaze.BlazeClientBuilder
+  import org.http4s.server.blaze.BlazeBuilder
+
   import scala.concurrent.ExecutionContext.Implicits.global
   import scala.concurrent.duration.{Duration, SECONDS}
   import scala.util._
@@ -47,9 +49,15 @@ class HttpServer[F[_]: ConcurrentEffect : ContextShift : Timer : Par] extends Ht
   }
 
   def stream: Stream[F, ExitCode] = {
+    import org.http4s.server.middleware.StaticHeaders.`no-cache`
+    import org.http4s.server.middleware.CORS
+
     for {
       hc <- httpClient()
-      exitCode <- BlazeBuilder[F].bindHttp().mountService(fooRestService(hc), "/api").serve
+      exitCode <- BlazeBuilder[F].
+        bindHttp().
+        mountService(CORS(`no-cache`(fooRestService(hc))), "/api").
+        serve
     } yield exitCode
   }
 
