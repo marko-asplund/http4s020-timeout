@@ -15,7 +15,7 @@ class HttpServer[F[_]: ConcurrentEffect : ContextShift : Timer : Par] extends Ht
   import fs2.Stream
   import org.http4s.client.Client
   import org.http4s.client.blaze.BlazeClientBuilder
-  import org.http4s.server.blaze.BlazeBuilder
+  import org.http4s.server.blaze.BlazeServerBuilder
 
   import scala.concurrent.ExecutionContext.Implicits.global
   import scala.concurrent.duration.{Duration, SECONDS}
@@ -31,6 +31,7 @@ class HttpServer[F[_]: ConcurrentEffect : ContextShift : Timer : Par] extends Ht
 
   def fooRestService(hc: Client[F])(implicit M: MonadError[F, Throwable]) = {
     import org.http4s._
+    import org.http4s.implicits._
 
     HttpRoutes.of[F] {
       case req@GET -> Root / "ping" => Ok("pong")
@@ -45,7 +46,7 @@ class HttpServer[F[_]: ConcurrentEffect : ContextShift : Timer : Par] extends Ht
             }
           case s => M.raiseError[Response[F]](new Exception(s"error2: $s"))
         }
-    }
+    }.orNotFound
   }
 
   def stream: Stream[F, ExitCode] = {
@@ -54,9 +55,9 @@ class HttpServer[F[_]: ConcurrentEffect : ContextShift : Timer : Par] extends Ht
 
     for {
       hc <- httpClient()
-      exitCode <- BlazeBuilder[F].
+      exitCode <- BlazeServerBuilder[F].
         bindHttp().
-        mountService(CORS(`no-cache`(fooRestService(hc))), "/api").
+        withHttpApp(CORS(`no-cache`(fooRestService(hc)))).
         serve
     } yield exitCode
   }
