@@ -13,6 +13,7 @@ class HttpServer[F[_]: ConcurrentEffect : ContextShift : Timer : Par] extends Ht
   import cats.MonadError
   import com.typesafe.scalalogging.Logger
   import fs2.Stream
+  import org.http4s.server.Router
   import org.http4s.client.Client
   import org.http4s.client.blaze.BlazeClientBuilder
   import org.http4s.server.blaze.BlazeServerBuilder
@@ -31,7 +32,6 @@ class HttpServer[F[_]: ConcurrentEffect : ContextShift : Timer : Par] extends Ht
 
   def fooRestService(hc: Client[F])(implicit M: MonadError[F, Throwable]) = {
     import org.http4s._
-    import org.http4s.implicits._
 
     HttpRoutes.of[F] {
       case req@GET -> Root / "ping" => Ok("pong")
@@ -46,18 +46,22 @@ class HttpServer[F[_]: ConcurrentEffect : ContextShift : Timer : Par] extends Ht
             }
           case s => M.raiseError[Response[F]](new Exception(s"error2: $s"))
         }
-    }.orNotFound
+    }
   }
 
   def stream: Stream[F, ExitCode] = {
     import org.http4s.server.middleware.StaticHeaders.`no-cache`
     import org.http4s.server.middleware.CORS
+    import org.http4s.implicits._
 
     for {
       hc <- httpClient()
       exitCode <- BlazeServerBuilder[F].
         bindHttp().
-        withHttpApp(CORS(`no-cache`(fooRestService(hc)))).
+        withHttpApp(Router(
+          "/api" -> CORS(`no-cache`(fooRestService(hc))),
+          "/xyz" -> fooRestService(hc)
+        ).orNotFound).
         serve
     } yield exitCode
   }
